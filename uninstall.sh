@@ -10,7 +10,7 @@ echo "=== Деинсталляция Port Forward Manager ==="
 echo ""
 
 # Остановить и отключить сервис
-if systemctl is-active --quiet portfw.service; then
+if systemctl is-active --quiet portfw.service 2>/dev/null; then
   echo "Останавливаю сервис portfw.service..."
   systemctl stop portfw.service
 fi
@@ -52,11 +52,20 @@ if command -v netfilter-persistent >/dev/null 2>&1; then
   netfilter-persistent save >/dev/null 2>&1 || true
 fi
 
+if command -v iptables-save >/dev/null 2>&1; then
+  mkdir -p /etc/iptables
+  iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
+fi
+
 # Удалить файлы
 echo "Удаляю файлы..."
 rm -f /usr/local/bin/portfw.sh
 rm -f /usr/local/bin/portfw-restore.sh
 rm -f /etc/systemd/system/portfw.service
+
+# Перезагрузить systemd
+echo "Перезагружаю systemd..."
+systemctl daemon-reload
 
 # Удалить конфигурацию (опционально)
 read -p "Удалить конфигурацию и базу правил из /etc/portfw? (y/N): " -n 1 -r
@@ -64,13 +73,11 @@ echo
 if [[ $REPLY =~ ^[YyДд]$ ]]; then
   echo "Удаляю /etc/portfw..."
   rm -rf /etc/portfw
+  CONFIG_DELETED=true
 else
   echo "Конфигурация сохранена в /etc/portfw"
+  CONFIG_DELETED=false
 fi
-
-# Перезагрузить systemd
-echo "Перезагружаю systemd..."
-systemctl daemon-reload
 
 # Отключить IP forwarding (опционально)
 read -p "Отключить IP forwarding в системе? (y/N): " -n 1 -r
@@ -79,16 +86,49 @@ if [[ $REPLY =~ ^[YyДд]$ ]]; then
   echo "Отключаю IP forwarding..."
   sysctl -w net.ipv4.ip_forward=0 >/dev/null
   sed -i '/^net.ipv4.ip_forward=1/d' /etc/sysctl.conf 2>/dev/null || true
+  FORWARDING_DISABLED=true
 else
   echo "IP forwarding оставлен включённым"
+  FORWARDING_DISABLED=false
+fi
+
+# Удалить папку /opt/portfw (опционально)
+read -p "Удалить папку /opt/portfw с исходниками? (y/N): " -n 1 -r
+echo
+if [[ $REPLY =~ ^[YyДд]$ ]]; then
+  echo "Удаляю /opt/portfw..."
+  cd /root
+  rm -rf /opt/portfw
+  SOURCES_DELETED=true
+else
+  echo "Исходники сохранены в /opt/portfw"
+  SOURCES_DELETED=false
 fi
 
 echo ""
 echo "=== Деинсталляция завершена ==="
 echo ""
 echo "Удалённые компоненты:"
-echo "  - Сервис portfw.service"
-echo "  - Скрипты в /usr/local/bin/"
-echo "  - Правила iptables"
+echo "  ✓ Сервис portfw.service"
+echo "  ✓ Скрипты в /usr/local/bin/"
+echo "  ✓ Правила iptables"
+
+if [ "$CONFIG_DELETED" = true ]; then
+  echo "  ✓ Конфигурация /etc/portfw"
+else
+  echo "  - Конфигурация сохранена: /etc/portfw"
+fi
+
+if [ "$FORWARDING_DISABLED" = true ]; then
+  echo "  ✓ IP forwarding отключён"
+else
+  echo "  - IP forwarding включён"
+fi
+
+if [ "$SOURCES_DELETED" = true ]; then
+  echo "  ✓ Исходники /opt/portfw"
+else
+  echo "  - Исходники сохранены: /opt/portfw"
+fi
+
 echo ""
-echo "Если вы сохранили конфигурацию, она находится в /etc/portfw"
