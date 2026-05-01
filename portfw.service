@@ -1,0 +1,14 @@
+[Unit]
+Description=Port Forward Manager
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/portfw/portfw.env
+ExecStart=/usr/local/bin/portfw.sh
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
