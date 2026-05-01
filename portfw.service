@@ -4,11 +4,10 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-Type=simple
+Type=oneshot
+RemainAfterExit=yes
 EnvironmentFile=-/etc/portfw/portfw.env
-ExecStart=/usr/local/bin/portfw.sh
-Restart=always
-RestartSec=3
+ExecStart=/bin/bash -c 'source /etc/portfw/portfw.env 2>/dev/null || true; /usr/local/bin/portfw-restore.sh'
 
 [Install]
 WantedBy=multi-user.target
