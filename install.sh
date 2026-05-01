@@ -22,5 +22,6 @@ install -m 755 "$APP_DIR/portfw.sh" /usr/local/bin/portfw.sh
 install -m 644 "$APP_DIR/portfw.service" /etc/systemd/system/portfw.service
 install -m 644 "$APP_DIR/portfw.env" /etc/portfw/portfw.env
 
+mkdir -p /etc/iptables
 iptables-save > "$IPTABLES_SAVE_FILE"
 netfilter-persistent save >/dev/null 2>&1 || true
